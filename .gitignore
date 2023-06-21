@@ -1,3 +1,8 @@
+# qm9 related files
+*_.csv
+*.npy
+*.xyz
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
