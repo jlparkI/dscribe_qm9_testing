@@ -51,7 +51,7 @@ def partition_input_filelist(input_filelist, batch_name):
 
 
 
-def featurize_split(input_filelist, yval_dict, batch_name):
+def featurize_split(input_filelist, yval_dict, batch_name, compression):
     """Generates .npy files containing 'chunked' data
     for the input list of xyz files.
     Args:
@@ -64,15 +64,39 @@ def featurize_split(input_filelist, yval_dict, batch_name):
 
     species = {"C", "H", "O", "N", "F"}
 
-    soaper = SOAP(species=species,
+    if compression == "m1n1":
+        soaper = SOAP(species=species,
                 periodic=False,
                 sigma = 0.25,
                 n_max=8, l_max=5,
                 weighting={"function":"pow",
                     "r0":1.5, "m":8, "c":1, "d":1},
-                average = "m1n1_compression",
+                compression="m1n1", average="off",
                 r_cut = 4,
                 sparse=False)
+        soaper2 = None
+    elif compression == "agnostic":
+        soaper = SOAP(species=species,
+                periodic=False,
+                sigma = 0.25,
+                n_max=8, l_max=5,
+                weighting={"function":"pow",
+                    "r0":1.5, "m":8, "c":1, "d":1},
+                compression="agnostic", average="off",
+                r_cut = 4, sparse=False,
+                species_weighting = {"H":2.20, "C":2.55, "O":3.04, "N":3.44, "F":3.98})
+        soaper2 = SOAP(species=species,
+                periodic=False,
+                sigma = 0.25,
+                n_max=8, l_max=5,
+                weighting={"function":"pow",
+                    "r0":1.5, "m":8, "c":1, "d":1},
+                compression="agnostic", average="off",
+                r_cut = 4, sparse=False,
+                species_weighting = None)
+    else:
+        raise ValueError("Currently unrecognized compression option passed.")
+
     batchnum = 0
     for _, molgroup in molgroups.items():
         if len(molgroup) == 0:
@@ -83,20 +107,22 @@ def featurize_split(input_filelist, yval_dict, batch_name):
             structs.append(struct)
             yvals.append(yval_dict[mol_id])
             if len(structs) >= BATCH_SIZE:
-                blend_soap(soaper, structs, yvals, batchnum)
+                blend_soap(soaper, soaper2, structs, yvals, batchnum)
                 structs, yvals = [], []
                 batchnum += 1
         if len(structs) > 0:
-            blend_soap(soaper, structs, yvals, batchnum)
+            blend_soap(soaper, soaper2, structs, yvals, batchnum)
             batchnum += 1
 
 
-def blend_soap(soaper, structs, yvals, batchnum):
+def blend_soap(soaper, soaper2, structs, yvals, batchnum):
     """Performs the actual work of converting a minibatch of molecules
     into soap descriptors and saving to file.
     Args:
         soaper: The object that will generate the SOAP descriptors for
             use by convolution kernels.
+        soaper2: A second, element-agnostic soaper optionally supplied by
+            caller.
         structs (list): A list of ase atoms objects containing the
             molecules to be processed.
         yvals (list): A list of shape M arrays where M is the number
@@ -108,8 +134,15 @@ def blend_soap(soaper, structs, yvals, batchnum):
     if len(xmats.shape) == 2:
         xmats = xmats.reshape((1,xmats.shape[0], xmats.shape[1]))
 
-    xmats /= np.linalg.norm(xmats, axis=2)[:,:,None]
+    if soaper2 is None:
+        xmats /= np.linalg.norm(xmats, axis=2)[:,:,None]
     ydata = np.array(yvals)
+
+    if soaper2 is not None:
+        xmats2 = soaper2.create(structs, n_jobs=1)
+        if len(xmats2.shape) == 2:
+            xmats2 = xmats2.reshape((1,xmats2.shape[0], xmats2.shape[1]))
+        xmats = np.concatenate([xmats, xmats2], axis=2)
 
     print(f"Saving another batch, size {xmats.shape}...", flush=True)
     np.save(f"qm9_{batchnum}_xfolded.npy", xmats)
@@ -117,7 +150,7 @@ def blend_soap(soaper, structs, yvals, batchnum):
 
 
 
-def featurize_xyzfiles(target_dir, chemdata_path):
+def featurize_xyzfiles(target_dir, chemdata_path, compression):
     """Obtains a list of xyz files for a target directory, splits them
     up into train - valid - test, and sets them up for feature generation."""
 
@@ -147,7 +180,7 @@ def featurize_xyzfiles(target_dir, chemdata_path):
         if batch_dir not in os.listdir():
             os.mkdir(batch_dir)
         os.chdir(batch_dir)
-        featurize_split(cv_split, yval_dict, batch_dir)
+        featurize_split(cv_split, yval_dict, batch_dir, compression)
         os.chdir("..")
 
     print("All done.")
@@ -155,7 +188,19 @@ def featurize_xyzfiles(target_dir, chemdata_path):
 if __name__ == "__main__":
     start_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(os.path.join(start_dir, "..", "qm9_data"))
-    if "qm9_soap_features" not in os.listdir():
-        os.mkdir("qm9_soap_features")
-    output_dir = os.path.join(os.getcwd(), "qm9_soap_features")
-    featurize_xyzfiles(output_dir, os.getcwd())
+
+    if "qm9_m1n1_features" not in os.listdir():
+        os.mkdir("qm9_m1n1_features")
+    if "qm9_agnostic_features" not in os.listdir():
+        os.mkdir("qm9_agnostic_features")
+
+    #print("Working on m1n1 features...")
+    #output_dir = os.path.join(os.getcwd(), "qm9_m1n1_features")
+    #featurize_xyzfiles(output_dir, os.getcwd(), "m1n1")
+
+    os.chdir(os.path.join(start_dir, "..", "qm9_data"))
+
+    print("Working on agnostic features...")
+    output_dir = os.path.join(os.getcwd(), "qm9_agnostic_features")
+    featurize_xyzfiles(output_dir, os.getcwd(), "agnostic")
+    os.chdir(start_dir)

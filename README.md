@@ -16,6 +16,9 @@ This demo runs on Linux only, with a GPU with CUDA >= 10.0 and with Python 3.9 o
 
 To run this demo, with a venv active, run the `install.sh` script. Next, run `setup_qm9.sh`. This will
 download the qm9 dataset and generate the SOAP features. Finally,
-use the Jupyter "qm9_fitting" notebook under notebooks. Note that dowloading the
+use the Jupyter "qm9_fitting_m1n1" or "qm9_fitting_agnostic" notebooks under notebooks. Note that dowloading the
 qm9 dataset and generating the features can take a minute and -- once all features are generated --
-close to 50 GB of disk space.
+> 50 GB of disk space. There are two types of features generated -- "agnostic" features in which different
+elements are weighted differently, and "m1n1" features in which feature compression is applied. Either option
+produces far fewer features than uncompressed SOAP with crossover, although agnostic is substantially smaller
+still.
