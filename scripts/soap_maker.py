@@ -194,9 +194,9 @@ if __name__ == "__main__":
     if "qm9_agnostic_features" not in os.listdir():
         os.mkdir("qm9_agnostic_features")
 
-    #print("Working on m1n1 features...")
-    #output_dir = os.path.join(os.getcwd(), "qm9_m1n1_features")
-    #featurize_xyzfiles(output_dir, os.getcwd(), "m1n1")
+    print("Working on m1n1 features...")
+    output_dir = os.path.join(os.getcwd(), "qm9_m1n1_features")
+    featurize_xyzfiles(output_dir, os.getcwd(), "m1n1")
 
     os.chdir(os.path.join(start_dir, "..", "qm9_data"))
 
