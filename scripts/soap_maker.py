@@ -64,36 +64,36 @@ def featurize_split(input_filelist, yval_dict, batch_name, compression):
 
     species = {"C", "H", "O", "N", "F"}
 
-    if compression == "m1n1":
+    if compression == "mu1nu1":
         soaper = SOAP(species=species,
                 periodic=False,
                 sigma = 0.25,
                 n_max=8, l_max=5,
                 weighting={"function":"pow",
                     "r0":1.5, "m":8, "c":1, "d":1},
-                compression="m1n1", average="off",
+                compression={"mode":"mu1nu1"}, average="off",
                 r_cut = 4,
                 sparse=False)
         soaper2 = None
-    elif compression == "agnostic":
+    elif compression == "mu2":
         soaper = SOAP(species=species,
                 periodic=False,
                 sigma = 0.25,
                 n_max=8, l_max=5,
                 weighting={"function":"pow",
                     "r0":1.5, "m":8, "c":1, "d":1},
-                compression="agnostic", average="off",
-                r_cut = 4, sparse=False,
-                species_weighting = {"H":2.20, "C":2.55, "O":3.04, "N":3.44, "F":3.98})
+                compression={"mode":"mu2",
+                    "species_weighting":{"H":2.20, "C":2.55, "O":3.04, "N":3.44, "F":3.98}},
+                    average="off",
+                r_cut = 4, sparse=False)
         soaper2 = SOAP(species=species,
                 periodic=False,
                 sigma = 0.25,
                 n_max=8, l_max=5,
                 weighting={"function":"pow",
                     "r0":1.5, "m":8, "c":1, "d":1},
-                compression="agnostic", average="off",
-                r_cut = 4, sparse=False,
-                species_weighting = None)
+                compression={"mode":"mu2"}, average="off",
+                r_cut = 4, sparse=False)
     else:
         raise ValueError("Currently unrecognized compression option passed.")
 
@@ -189,18 +189,18 @@ if __name__ == "__main__":
     start_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(os.path.join(start_dir, "..", "qm9_data"))
 
-    if "qm9_m1n1_features" not in os.listdir():
-        os.mkdir("qm9_m1n1_features")
-    if "qm9_agnostic_features" not in os.listdir():
-        os.mkdir("qm9_agnostic_features")
+    if "qm9_mu1nu1_features" not in os.listdir():
+        os.mkdir("qm9_mu1nu1_features")
+    if "qm9_mu2_features" not in os.listdir():
+        os.mkdir("qm9_mu2_features")
 
-    print("Working on m1n1 features...")
-    output_dir = os.path.join(os.getcwd(), "qm9_m1n1_features")
-    featurize_xyzfiles(output_dir, os.getcwd(), "m1n1")
+    print("Working on mu1nu1 features...")
+    output_dir = os.path.join(os.getcwd(), "qm9_mu1nu1_features")
+    featurize_xyzfiles(output_dir, os.getcwd(), "mu1nu1")
 
     os.chdir(os.path.join(start_dir, "..", "qm9_data"))
 
-    print("Working on agnostic features...")
-    output_dir = os.path.join(os.getcwd(), "qm9_agnostic_features")
-    featurize_xyzfiles(output_dir, os.getcwd(), "agnostic")
+    print("Working on mu2 features...")
+    output_dir = os.path.join(os.getcwd(), "qm9_mu2_features")
+    featurize_xyzfiles(output_dir, os.getcwd(), "mu2")
     os.chdir(start_dir)
